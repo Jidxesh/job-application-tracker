@@ -1,0 +1,45 @@
+---
+description: Job application tracker — architecture and version constraints
+alwaysApply: true
+---
+
+# Stack (do not substitute versions)
+Java 21, Spring Boot 4.1.1, Spring Framework 7, Spring Security 7,
+Jackson 3, PostgreSQL, jjwt 0.12.6, Maven.
+Frontend: React 18 + Vite, plain axios, React Router. No Redux, no Next.js.
+
+# Hard rules
+- Spring Security 7. SecurityFilterChain @Bean with lambda DSL only.
+  NEVER WebSecurityConfigurerAdapter, antMatchers, authorizeRequests,
+  or .and() chaining — all removed. Nothing is implicit: declare every
+  behavior explicitly.
+- CSRF is enabled by default in Security 7. This is a stateless JWT API,
+  so csrf(csrf -> csrf.disable()) is required.
+- Jackson 3, not Jackson 2. Do not write custom JsonSerializer /
+  JsonDeserializer or use ObjectMapper constructors directly.
+- jjwt 0.12.x API only. Building: Jwts.builder().subject(x).signWith(key).compact()
+  Parsing: Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload()
+  NEVER setSigningKey(String), parserBuilder(), or Jwts.parser().parseClaimsJws().
+- Every repository method that touches user data takes userId:
+  findByIdAndUserId, findAllByUserId. NEVER a bare findById on Application
+  or StatusEvent — that is an IDOR.
+- Controllers return DTOs (Java records). Entities are never serialized.
+- current_status on Application is written ONLY by StatusService.transition().
+  No other service or controller may set it.
+- Use constructor injection. No @Autowired on fields.
+- Do not add dependencies, Flyway, Liquibase, MapStruct, or Docker Compose
+  unless I ask.
+
+# Package layout
+com.jidnesh.jobtracker.{config,security,user,auth,application,status,exception}
+
+# Data model
+User (id, email UK, passwordHash, createdAt)
+Application (id, userId FK, company, roleTitle, location, source, appliedOn,
+             currentStatus, notes, createdAt, updatedAt)
+StatusEvent (id, applicationId FK, status, note, occurredAt)
+Status enum: APPLIED, ONLINE_ASSESSMENT, INTERVIEW, OFFER, REJECTED, WITHDRAWN
+
+StatusEvent is the source of truth. Application.currentStatus is a denormalized
+read optimization updated in the same @Transactional method that inserts the
+event.
