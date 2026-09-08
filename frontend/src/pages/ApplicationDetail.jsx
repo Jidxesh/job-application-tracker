@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import client from '../api/client';
+import { Badge } from './Dashboard';
 
 const STATUSES = ['APPLIED', 'ONLINE_ASSESSMENT', 'INTERVIEW', 'OFFER', 'REJECTED', 'WITHDRAWN'];
 const label = (s) => s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+const DOT = {
+  APPLIED: 'var(--applied)', ONLINE_ASSESSMENT: 'var(--assessment)',
+  INTERVIEW: 'var(--interview)', OFFER: 'var(--offer)',
+  REJECTED: 'var(--rejected)', WITHDRAWN: 'var(--withdrawn)',
+};
 
 export default function ApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [app, setApp] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [target, setTarget] = useState('');
@@ -16,7 +21,6 @@ export default function ApplicationDetail() {
   const [error, setError] = useState(null);
 
   const load = async () => {
-    setError(null);
     try {
       const [a, t] = await Promise.all([
         client.get(`/api/applications/${id}`),
@@ -24,6 +28,7 @@ export default function ApplicationDetail() {
       ]);
       setApp(a.data);
       setTimeline(t.data);
+      setError(null);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Could not load');
     }
@@ -33,11 +38,9 @@ export default function ApplicationDetail() {
 
   const move = async (e) => {
     e.preventDefault();
-    setError(null);
     try {
       await client.post(`/api/applications/${id}/status`, { status: target, note: note || null });
-      setTarget('');
-      setNote('');
+      setTarget(''); setNote('');
       await load();
     } catch (err) {
       setError(err.response?.data?.error ?? 'Could not change status');
@@ -50,48 +53,63 @@ export default function ApplicationDetail() {
     navigate('/');
   };
 
-  if (!app) return <div style={{ padding: 40 }}>{error ?? 'Loading…'}</div>;
+  if (!app) return <div className="page">{error ? <p className="error">{error}</p> : 'Loading…'}</div>;
+
+  const meta = [app.location, app.source, app.appliedOn].filter(Boolean).join(' · ');
 
   return (
-    <div style={{ maxWidth: 700, margin: '40px auto', padding: '0 20px', fontFamily: 'system-ui' }}>
-      <Link to="/">← Back</Link>
+    <div className="page" style={{ maxWidth: 680 }}>
+      <Link to="/" className="back">← All applications</Link>
 
-      <h1 style={{ marginBottom: 4 }}>{app.company}</h1>
-      <p style={{ margin: 0, opacity: 0.8 }}>{app.roleTitle}</p>
-      <p style={{ opacity: 0.6, fontSize: 14 }}>
-        {[app.location, app.source, app.appliedOn].filter(Boolean).join(' · ')}
-      </p>
-      <p><strong>{label(app.currentStatus)}</strong></p>
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }}>
+          <div>
+            <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px' }}>
+              {app.company}
+            </h1>
+            <div style={{ color: 'var(--text-muted)' }}>{app.roleTitle}</div>
+            {meta && <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 6 }}>{meta}</div>}
+          </div>
+          <Badge status={app.currentStatus} />
+        </div>
 
-      {app.notes && <p style={{ whiteSpace: 'pre-wrap', opacity: 0.85 }}>{app.notes}</p>}
+        {app.notes && (
+          <p style={{ whiteSpace: 'pre-wrap', color: 'var(--text-muted)', fontSize: 14, marginBottom: 0 }}>
+            {app.notes}
+          </p>
+        )}
 
-      <div style={{ display: 'flex', gap: 10, margin: '16px 0' }}>
-        <Link to={`/applications/${id}/edit`}><button>Edit</button></Link>
-        <button onClick={remove}>Delete</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <Link to={`/applications/${id}/edit`}><button>Edit</button></Link>
+          <button className="btn-danger" onClick={remove}>Delete</button>
+        </div>
       </div>
 
-      <h2 style={{ fontSize: 18, marginTop: 32 }}>Move to a new status</h2>
+      <div className="section-title">Move to a new status</div>
       <form onSubmit={move} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <select value={target} onChange={(e) => setTarget(e.target.value)} required style={{ padding: 8 }}>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} required style={{ width: 190 }}>
           <option value="">Choose…</option>
           {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
         </select>
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" style={{ padding: 8, flex: 1, minWidth: 180 }} />
-        <button type="submit" style={{ padding: '8px 16px' }}>Move</button>
+        <input value={note} onChange={(e) => setNote(e.target.value)}
+               placeholder="Note (optional)" style={{ flex: 1, minWidth: 180 }} />
+        <button type="submit" className="btn-primary">Move</button>
       </form>
 
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {error && <p className="error" style={{ marginTop: 14 }}>{error}</p>}
 
-      <h2 style={{ fontSize: 18, marginTop: 32 }}>History</h2>
-      <ol style={{ listStyle: 'none', padding: 0, borderLeft: '2px solid #444', marginLeft: 6 }}>
+      <div className="section-title">History</div>
+      <ol className="timeline">
         {timeline.map((e) => (
-          <li key={e.id} style={{ padding: '8px 0 8px 16px', position: 'relative' }}>
-            <span style={{ position: 'absolute', left: -7, top: 14, width: 10, height: 10, borderRadius: '50%', background: '#888' }} />
-            <strong>{label(e.status)}</strong>
-            <span style={{ opacity: 0.6, fontSize: 13, marginLeft: 8 }}>
-              {new Date(e.occurredAt).toLocaleDateString()}
-            </span>
-            {e.note && <div style={{ opacity: 0.75, fontSize: 14 }}>{e.note}</div>}
+          <li key={e.id}>
+            <span className="timeline-dot" style={{ background: DOT[e.status] }} />
+            <div className="timeline-head">
+              <strong style={{ fontSize: 14 }}>{label(e.status)}</strong>
+              <span className="timeline-date">
+                {new Date(e.occurredAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+            {e.note && <div className="timeline-note">{e.note}</div>}
           </li>
         ))}
       </ol>

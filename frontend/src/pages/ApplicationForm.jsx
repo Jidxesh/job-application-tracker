@@ -17,17 +17,14 @@ export default function ApplicationForm() {
     if (!editing) return;
     client.get(`/api/applications/${id}`)
       .then((res) => setForm({
-        company: res.data.company ?? '',
-        roleTitle: res.data.roleTitle ?? '',
-        location: res.data.location ?? '',
-        source: res.data.source ?? '',
-        appliedOn: res.data.appliedOn ?? '',
-        notes: res.data.notes ?? '',
+        company: res.data.company ?? '', roleTitle: res.data.roleTitle ?? '',
+        location: res.data.location ?? '', source: res.data.source ?? '',
+        appliedOn: res.data.appliedOn ?? '', notes: res.data.notes ?? '',
       }))
-      .catch(() => setError('Could not load that application'));
+      .catch(() => setError('Could not load this application.'));
   }, [id, editing]);
 
-  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -43,42 +40,43 @@ export default function ApplicationForm() {
         navigate(`/applications/${res.data.id}`);
       }
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Could not save');
+      setError(err.response?.data?.error ?? 'Could not save. Check the required fields.');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 560, margin: '40px auto', padding: '0 20px', fontFamily: 'system-ui' }}>
-      <Link to="/">← Back</Link>
-      <h1>{editing ? 'Edit application' : 'New application'}</h1>
+    <>
+      <div className="bar"><Link to="/" className="mark">Job Tracker</Link></div>
 
-      <form onSubmit={submit}>
-        <Field label="Company *"><input value={form.company} onChange={set('company')} required style={input} /></Field>
-        <Field label="Role *"><input value={form.roleTitle} onChange={set('roleTitle')} required style={input} /></Field>
-        <Field label="Location"><input value={form.location} onChange={set('location')} style={input} /></Field>
-        <Field label="Source"><input value={form.source} onChange={set('source')} placeholder="LinkedIn, referral, careers page…" style={input} /></Field>
-        <Field label="Applied on"><input type="date" value={form.appliedOn} onChange={set('appliedOn')} style={input} /></Field>
-        <Field label="Notes"><textarea value={form.notes} onChange={set('notes')} rows={4} style={input} /></Field>
+      <div className="shell" style={{ maxWidth: 520 }}>
+        <Link to={editing ? `/applications/${id}` : '/'} className="back">Cancel</Link>
+        <h1 className="detail-company" style={{ marginBottom: 26 }}>
+          {editing ? 'Edit details' : 'New application'}
+        </h1>
 
-        <button type="submit" disabled={busy} style={{ padding: '10px 20px' }}>
-          {busy ? 'Saving…' : editing ? 'Save changes' : 'Create'}
-        </button>
-      </form>
+        <form onSubmit={submit}>
+          <label className="field-label"><span>Company</span>
+            <input value={form.company} onChange={set('company')} required /></label>
+          <label className="field-label"><span>Role</span>
+            <input value={form.roleTitle} onChange={set('roleTitle')} required /></label>
+          <label className="field-label"><span>Location</span>
+            <input value={form.location} onChange={set('location')} /></label>
+          <label className="field-label"><span>Where you found it</span>
+            <input value={form.source} onChange={set('source')} placeholder="LinkedIn, referral, careers page" /></label>
+          <label className="field-label"><span>Date applied</span>
+            <input type="date" value={form.appliedOn} onChange={set('appliedOn')} /></label>
+          <label className="field-label"><span>Notes</span>
+            <textarea value={form.notes} onChange={set('notes')} rows={4} /></label>
 
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
-    </div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : editing ? 'Save changes' : 'Add application'}
+          </button>
+        </form>
+
+        {error && <p className="error">{error}</p>}
+      </div>
+    </>
   );
 }
-
-function Field({ label, children }) {
-  return (
-    <label style={{ display: 'block', marginBottom: 14 }}>
-      <span style={{ display: 'block', fontSize: 13, opacity: 0.7, marginBottom: 4 }}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const input = { width: '100%', padding: 10, boxSizing: 'border-box', font: 'inherit' };
