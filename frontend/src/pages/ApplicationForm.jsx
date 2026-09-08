@@ -12,19 +12,24 @@ export default function ApplicationForm() {
   });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(editing);
 
   useEffect(() => {
     if (!editing) return;
     client.get(`/api/applications/${id}`)
       .then((res) => setForm({
-        company: res.data.company ?? '', roleTitle: res.data.roleTitle ?? '',
-        location: res.data.location ?? '', source: res.data.source ?? '',
-        appliedOn: res.data.appliedOn ?? '', notes: res.data.notes ?? '',
+        company: res.data.company ?? '',
+        roleTitle: res.data.roleTitle ?? '',
+        location: res.data.location ?? '',
+        source: res.data.source ?? '',
+        appliedOn: res.data.appliedOn ?? '',
+        notes: res.data.notes ?? '',
       }))
-      .catch(() => setError('Could not load this application.'));
+      .catch(() => setError('Could not load that application'))
+      .finally(() => setLoading(false));
   }, [id, editing]);
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -40,43 +45,76 @@ export default function ApplicationForm() {
         navigate(`/applications/${res.data.id}`);
       }
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Could not save. Check the required fields.');
+      setError(err.response?.data?.error ?? 'Could not save');
     } finally {
       setBusy(false);
     }
   };
 
+  const back = editing ? `/applications/${id}` : '/';
+
   return (
-    <>
-      <div className="bar"><Link to="/" className="mark">Job Tracker</Link></div>
+    <div className="page" style={{ maxWidth: 560 }}>
+      <Link to={back} className="back">← {editing ? 'Back to application' : 'All applications'}</Link>
 
-      <div className="shell" style={{ maxWidth: 520 }}>
-        <Link to={editing ? `/applications/${id}` : '/'} className="back">Cancel</Link>
-        <h1 className="detail-company" style={{ marginBottom: 26 }}>
-          {editing ? 'Edit details' : 'New application'}
-        </h1>
+      <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 6px' }}>
+        {editing ? 'Edit application' : 'New application'}
+      </h1>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 26px' }}>
+        {editing
+          ? 'Update the details. Status changes happen on the application page.'
+          : 'It starts at Applied — you can move it along as things progress.'}
+      </p>
 
-        <form onSubmit={submit}>
-          <label className="field-label"><span>Company</span>
-            <input value={form.company} onChange={set('company')} required /></label>
-          <label className="field-label"><span>Role</span>
-            <input value={form.roleTitle} onChange={set('roleTitle')} required /></label>
-          <label className="field-label"><span>Location</span>
-            <input value={form.location} onChange={set('location')} /></label>
-          <label className="field-label"><span>Where you found it</span>
-            <input value={form.source} onChange={set('source')} placeholder="LinkedIn, referral, careers page" /></label>
-          <label className="field-label"><span>Date applied</span>
-            <input type="date" value={form.appliedOn} onChange={set('appliedOn')} /></label>
-          <label className="field-label"><span>Notes</span>
-            <textarea value={form.notes} onChange={set('notes')} rows={4} /></label>
+      {loading ? (
+        <div className="card"><div className="empty" style={{ padding: 24 }}>Loading…</div></div>
+      ) : (
+        <div className="card">
+          <form onSubmit={submit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field-label">Company *</label>
+                <input value={form.company} onChange={set('company')} required autoFocus placeholder="Zomato" />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field-label">Role *</label>
+                <input value={form.roleTitle} onChange={set('roleTitle')} required placeholder="Backend Engineer" />
+              </div>
+            </div>
 
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Saving…' : editing ? 'Save changes' : 'Add application'}
-          </button>
-        </form>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 18 }}>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field-label">Location</label>
+                <input value={form.location} onChange={set('location')} placeholder="Gurgaon" />
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="field-label">Applied on</label>
+                <input type="date" value={form.appliedOn} onChange={set('appliedOn')} />
+              </div>
+            </div>
 
-        {error && <p className="error">{error}</p>}
-      </div>
-    </>
+            <div className="field" style={{ marginTop: 18 }}>
+              <label className="field-label">Where you found it</label>
+              <input value={form.source} onChange={set('source')} placeholder="LinkedIn, referral, careers page" />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Notes</label>
+              <textarea value={form.notes} onChange={set('notes')} rows={4}
+                        placeholder="Referred by a senior, team works on payments…" />
+            </div>
+
+            {error && <p className="error" style={{ marginBottom: 18 }}>{error}</p>}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Link to={back}><button type="button">Cancel</button></Link>
+              <button type="submit" className="btn-primary" disabled={busy}>
+                {busy ? 'Saving…' : editing ? 'Save changes' : 'Add application'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
