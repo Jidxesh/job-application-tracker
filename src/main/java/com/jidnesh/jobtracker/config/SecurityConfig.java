@@ -31,7 +31,9 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/health").permitAll()
+                // /error must be public: otherwise Spring's error dispatch (404, 413, 500...)
+                // is itself rejected and every failure reaches the client as a 403.
+                .requestMatchers("/api/auth/**", "/api/health", "/error").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .build();
