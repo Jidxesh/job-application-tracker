@@ -59,7 +59,10 @@ export default function Dashboard() {
           <option value="">All statuses</option>
           {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
         </select>
-        <Link to="/new"><button className="btn-primary">Add application</button></Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link to="/resume"><button>Analyze resume</button></Link>
+          <Link to="/new"><button className="btn-primary">Add application</button></Link>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
