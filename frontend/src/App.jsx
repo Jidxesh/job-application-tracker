@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationDetail from './pages/ApplicationDetail';
+import ResumeAnalyzer from './pages/ResumeAnalyzer';
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/new" element={<RequireAuth><ApplicationForm /></RequireAuth>} />
           <Route path="/applications/:id" element={<RequireAuth><ApplicationDetail /></RequireAuth>} />
+          <Route path="/resume" element={<RequireAuth><ResumeAnalyzer /></RequireAuth>} />
           <Route path="/applications/:id/edit" element={<RequireAuth><ApplicationForm /></RequireAuth>} />
         </Routes>
       </BrowserRouter>

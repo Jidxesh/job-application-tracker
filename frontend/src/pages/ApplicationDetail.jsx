@@ -81,6 +81,7 @@ export default function ApplicationDetail() {
 
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <Link to={`/applications/${id}/edit`}><button>Edit</button></Link>
+          <Link to={`/resume?app=${id}`}><button>Check resume for this role</button></Link>
           <button className="btn-danger" onClick={remove}>Delete</button>
         </div>
       </div>

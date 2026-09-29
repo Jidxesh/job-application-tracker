@@ -31,7 +31,7 @@ Frontend: React 18 + Vite, plain axios, React Router. No Redux, no Next.js.
   unless I ask.
 
 # Package layout
-com.jidnesh.jobtracker.{config,security,user,auth,application,status,exception}
+com.jidnesh.jobtracker.{config,security,user,auth,application,status,resume,exception}
 
 # Data model
 User (id, email UK, passwordHash, createdAt)

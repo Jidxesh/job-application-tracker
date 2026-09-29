@@ -27,6 +27,25 @@ keep the full history instead of overwriting the current state.
 Each move writes an immutable `StatusEvent`, so an application's timeline shows
 what happened and when, not just where it ended up.
 
+### Resume analyzer
+
+Paste your resume (and ideally the job posting) to get two independent reviews:
+
+- **ATS score** — a deterministic, rule-based check that needs no API key:
+  keyword match against the job description (with missing terms listed),
+  standard section headings, contact details, quantified/action-verb bullets,
+  length, and formatting that trips up ATS parsers (tables, icons, pronouns).
+- **AI review** — Claude reads the resume against the role and returns a
+  structured review: overall score, strengths, improvements, missing skills,
+  ATS warnings, and rewrites of the weakest bullets (with `[X]` placeholders
+  instead of invented metrics). Enabled when `ANTHROPIC_API_KEY` is set; if it
+  is missing or the call fails, the ATS report is still returned.
+
+Open it from the dashboard ("Analyze resume") or from an application
+("Check resume for this role", which prefills the role and notes).
+Nothing is stored server-side; the resume text is kept in the browser's
+`localStorage` for convenience.
+
 ## Stack
 
 **Backend** — Java 21, Spring Boot 4.1, Spring Security 7 (JWT), Spring Data JPA,
@@ -73,6 +92,7 @@ out of responses and avoiding lazy-loading surprises.
 | POST | `/api/applications/{id}/status` | Move to a new status |
 | GET | `/api/applications/{id}/timeline` | Full status history |
 | GET | `/api/applications/summary` | Counts by status |
+| POST | `/api/resume/analyze` | ATS score + optional AI review (`resumeText`, `jobDescription`, `includeAi`) |
 
 All endpoints except `/api/auth/**` and `/api/health` require
 `Authorization: Bearer <token>`.
@@ -97,6 +117,8 @@ npm run dev
 Backend config via environment variables (defaults suit local development):
 `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`,
 `SPRING_DATASOURCE_PASSWORD`, `JWT_SECRET`.
+For the AI resume review: `ANTHROPIC_API_KEY` (optional), `ANTHROPIC_MODEL`
+(default `claude-opus-5-5`).
 Frontend config: `VITE_API_URL`.
 
 ## Tests
@@ -108,6 +130,9 @@ Frontend config: `VITE_API_URL`.
 Unit tests cover `StatusService`: valid transitions write both the event and the
 status column, invalid transitions write nothing at all, terminal statuses can't
 move, and one user cannot transition another user's application.
+`AtsAnalyzer` tests cover section/contact detection, keyword extraction and
+matching, and scoring; `AiResumeReviewer` is tested against a local stub of the
+Messages API.
 
 ## Author
 
