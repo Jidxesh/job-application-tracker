@@ -83,7 +83,9 @@ export default function ResumeAnalyzer() {
       setResume(data.text);
       setFileName(file.name);
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Could not read that PDF');
+      setError(err.response?.status === 404
+        ? 'PDF upload isn\'t available on the server yet. Try again after the backend finishes deploying.'
+        : err.response?.data?.error ?? 'Could not read that PDF');
     } finally {
       setExtracting(false);
     }
