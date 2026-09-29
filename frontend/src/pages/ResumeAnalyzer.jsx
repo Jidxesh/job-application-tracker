@@ -43,6 +43,9 @@ export default function ResumeAnalyzer() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [fileName, setFileName] = useState(null);
 
   // Coming from an application: prefill the job description from its role and notes.
   useEffect(() => {
@@ -56,15 +59,40 @@ export default function ResumeAnalyzer() {
     try { localStorage.setItem(RESUME_KEY, resume); } catch { /* storage unavailable */ }
   }, [resume]);
 
-  const loadFile = async (e) => {
-    const file = e.target.files?.[0];
+  const loadFile = async (file) => {
     if (!file) return;
-    if (!/\.(txt|md)$/i.test(file.name)) {
-      setError('Upload a .txt or .md file, or paste the text. For PDF/DOCX, open it and copy all the text.');
+    setError(null);
+    if (/\.(txt|md)$/i.test(file.name)) {
+      setResume(await file.text());
+      setFileName(file.name);
       return;
     }
-    setResume(await file.text());
-    setError(null);
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+      setError('Upload your resume as a PDF (or .txt).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('That PDF is over 5 MB. Export a smaller copy and try again.');
+      return;
+    }
+    setExtracting(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const { data } = await client.post('/api/resume/extract', body);
+      setResume(data.text);
+      setFileName(file.name);
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Could not read that PDF');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    loadFile(e.dataTransfer.files?.[0]);
   };
 
   const analyze = async (e) => {
@@ -102,15 +130,26 @@ export default function ResumeAnalyzer() {
       <form onSubmit={analyze} className="card">
         <div className="resume-inputs">
           <div className="field" style={{ marginBottom: 0 }}>
-            <div className="field-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Resume (plain text) *</span>
-              <label className="btn-link" style={{ cursor: 'pointer' }}>
-                Upload .txt
-                <input type="file" accept=".txt,.md,text/plain" onChange={loadFile} style={{ display: 'none' }} />
-              </label>
-            </div>
-            <textarea value={resume} onChange={(e) => setResume(e.target.value)} required rows={16}
-                      placeholder="Paste your resume text here…" />
+            <label className="field-label">Resume *</label>
+            <label
+              className={`dropzone${dragging ? ' dragging' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+            >
+              <input type="file" accept=".pdf,application/pdf,.txt,.md,text/plain"
+                     onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ''; }}
+                     style={{ display: 'none' }} />
+              <strong>{extracting ? 'Reading PDF…' : fileName ? `✓ ${fileName}` : 'Upload resume PDF'}</strong>
+              <span>{fileName ? 'Click to upload a different file' : 'Click or drag & drop · max 5 MB'}</span>
+            </label>
+            <textarea value={resume} onChange={(e) => setResume(e.target.value)} required rows={11}
+                      placeholder="…or paste your resume text here" />
+            {fileName && (
+              <div className="cell-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                This is the text an ATS will see. If parts are missing or jumbled, your PDF layout may confuse real ATS too.
+              </div>
+            )}
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label className="field-label">Job description (recommended)</label>
@@ -124,7 +163,7 @@ export default function ResumeAnalyzer() {
             <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} style={{ width: 'auto' }} />
             Include AI review (takes ~30s)
           </label>
-          <button type="submit" className="btn-primary" disabled={busy || !resume.trim()}>
+          <button type="submit" className="btn-primary" disabled={busy || extracting || !resume.trim()}>
             {busy ? 'Analyzing…' : 'Analyze resume'}
           </button>
         </div>
