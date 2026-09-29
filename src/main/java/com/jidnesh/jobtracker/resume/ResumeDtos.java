@@ -14,6 +14,8 @@ public class ResumeDtos {
         boolean includeAi
     ) {}
 
+    public record ExtractResponse(String text) {}
+
     public record AnalyzeResponse(
         AtsReport ats,
         AiReview ai,

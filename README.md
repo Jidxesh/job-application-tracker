@@ -29,7 +29,11 @@ what happened and when, not just where it ended up.
 
 ### Resume analyzer
 
-Paste your resume (and ideally the job posting) to get two independent reviews:
+Upload your resume as a PDF (or paste the text), add the job posting, and get
+two independent reviews. The PDF is converted to text with Apache PDFBox, which
+is roughly what an ATS sees, so if the extracted text looks jumbled, real ATS
+will likely struggle too. Scanned/image-only PDFs are rejected with an
+explanation.
 
 - **ATS score** — a deterministic, rule-based check that needs no API key:
   keyword match against the job description (with missing terms listed),
@@ -92,6 +96,7 @@ out of responses and avoiding lazy-loading surprises.
 | POST | `/api/applications/{id}/status` | Move to a new status |
 | GET | `/api/applications/{id}/timeline` | Full status history |
 | GET | `/api/applications/summary` | Counts by status |
+| POST | `/api/resume/extract` | Multipart `file` (PDF/.txt, max 5 MB) → extracted text |
 | POST | `/api/resume/analyze` | ATS score + optional AI review (`resumeText`, `jobDescription`, `includeAi`) |
 
 All endpoints except `/api/auth/**` and `/api/health` require
