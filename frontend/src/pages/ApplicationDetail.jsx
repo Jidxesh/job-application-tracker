@@ -61,7 +61,7 @@ export default function ApplicationDetail() {
     <div className="page" style={{ maxWidth: 680 }}>
       <Link to="/" className="back">← All applications</Link>
 
-      <div className="card">
+      <div className="card card-glow">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px' }}>

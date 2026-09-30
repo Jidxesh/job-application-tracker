@@ -69,7 +69,7 @@ export default function ApplicationForm() {
       {loading ? (
         <div className="card"><div className="empty" style={{ padding: 24 }}>Loading…</div></div>
       ) : (
-        <div className="card">
+        <div className="card card-glow">
           <form onSubmit={submit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div className="field" style={{ marginBottom: 0 }}>
