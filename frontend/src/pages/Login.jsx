@@ -27,15 +27,16 @@ export default function Login() {
   };
 
   return (
-    <div className="page-narrow">
-      <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
-        {isRegister ? 'Create account' : 'Sign in'}
+    <div className="page-narrow fade-in">
+      <div className="auth-logo"><span className="brand-mark">JT</span></div>
+      <h1 style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', margin: '0 0 8px', textAlign: 'center' }}>
+        {isRegister ? <>Create your <span className="gradient-text">account</span></> : <>Welcome <span className="gradient-text">back</span></>}
       </h1>
-      <p style={{ color: 'var(--text-muted)', marginTop: 0, marginBottom: 28, fontSize: 14 }}>
-        Track your job applications and their full history.
+      <p style={{ color: 'var(--text-muted)', marginTop: 0, marginBottom: 28, fontSize: 14, textAlign: 'center' }}>
+        Track every application, and make your resume ATS-ready.
       </p>
 
-      <div className="card">
+      <div className="card card-glow auth-card">
         <form onSubmit={submit}>
           <div className="field">
             <label className="field-label">Email</label>

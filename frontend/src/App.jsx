@@ -6,15 +6,16 @@ import Dashboard from './pages/Dashboard';
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationDetail from './pages/ApplicationDetail';
 import ResumeAnalyzer from './pages/ResumeAnalyzer';
+import AppShell from './components/AppShell';
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
-  return token ? children : <Navigate to="/login" replace />;
+  return token ? <AppShell>{children}</AppShell> : <Navigate to="/login" replace />;
 }
 
 function Home() {
   const { token } = useAuth();
-  return token ? <Dashboard /> : <Landing />;
+  return token ? <AppShell><Dashboard /></AppShell> : <Landing />;
 }
 
 export default function App() {

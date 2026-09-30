@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import client from '../api/client';
 
@@ -7,14 +7,85 @@ const RESUME_KEY = 'resumeText';
 const scoreColor = (pct) =>
   pct >= 75 ? 'var(--offer)' : pct >= 50 ? 'var(--assessment)' : 'var(--rejected)';
 
+const RING_STOPS = {
+  good: ['#10b981', '#22d3ee'],
+  ok: ['#f59e0b', '#f97316'],
+  low: ['#f43f5e', '#a855f7'],
+};
+const band = (pct) => (pct >= 75 ? 'good' : pct >= 50 ? 'ok' : 'low');
+const GRADE = { good: 'Strong', ok: 'Needs polish', low: 'Needs work' };
+
+const STEPS_ATS = ['Parsing sections', 'Matching keywords', 'Checking formatting'];
+const STEPS_AI = [...STEPS_ATS, 'Asking Claude for a recruiter review', 'Drafting bullet rewrites', 'Almost there'];
+
+// Animates a number from 0 up to `target`; jumps straight there if the user prefers reduced motion.
+function useCountUp(target, duration = 1100) {
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (reduced) return;
+    let frame;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setValue(Math.round(target * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, duration, reduced]);
+  return reduced ? target : value;
+}
+
 function ScoreRing({ score, label }) {
-  const deg = Math.max(0, Math.min(100, score)) * 3.6;
+  const id = useId();
+  const value = useCountUp(Math.max(0, Math.min(100, score)));
+  const b = band(score);
+  const r = 46;
+  const circumference = 2 * Math.PI * r;
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div className="score-ring" style={{ background: `conic-gradient(${scoreColor(score)} ${deg}deg, var(--border) 0deg)` }}>
-        <div className="score-ring-inner">{score}</div>
+    <div>
+      <div className="score-ring">
+        <svg width="108" height="108" viewBox="0 0 108 108">
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={RING_STOPS[b][0]} />
+              <stop offset="100%" stopColor={RING_STOPS[b][1]} />
+            </linearGradient>
+          </defs>
+          <circle cx="54" cy="54" r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="8" />
+          <circle cx="54" cy="54" r={r} fill="none" stroke={`url(#${id})`} strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={circumference} strokeDashoffset={circumference * (1 - value / 100)}
+                  style={{ filter: `drop-shadow(0 0 6px ${RING_STOPS[b][0]}88)` }} />
+        </svg>
+        <div className="score-ring-value">{value}</div>
       </div>
-      <div className="stat-label" style={{ marginTop: 8 }}>{label}</div>
+      <div className="score-caption">
+        <div className="stat-label">{label}</div>
+        <div className="score-grade" style={{ color: RING_STOPS[b][0] }}>{GRADE[b]}</div>
+      </div>
+    </div>
+  );
+}
+
+// Cycles through progress messages while the request is in flight.
+function Analyzing({ withAi }) {
+  const steps = withAi ? STEPS_AI : STEPS_ATS;
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => Math.min(n + 1, steps.length - 1)), withAi ? 5000 : 350);
+    return () => clearInterval(t);
+  }, [steps.length, withAi]);
+  return (
+    <div className="card card-glow analyzing fade-in">
+      <div className="spinner" />
+      <div style={{ flex: 1 }}>
+        <strong>{steps[i]}…</strong>
+        <div className="cell-muted" style={{ fontSize: 13 }}>
+          {withAi ? 'The AI review usually takes 20–40 seconds.' : 'This only takes a moment.'}
+        </div>
+        <div className="progress"><div className="progress-fill" style={{ width: `${((i + 1) / steps.length) * 92}%` }} /></div>
+      </div>
     </div>
   );
 }
@@ -22,7 +93,7 @@ function ScoreRing({ score, label }) {
 function Bar({ score, max }) {
   const pct = max ? Math.round((score / max) * 100) : 0;
   return (
-    <div className="bar"><div className="bar-fill" style={{ width: `${pct}%`, background: scoreColor(pct) }} /></div>
+    <div className="bar"><div className="bar-fill" style={{ width: `${pct}%`, background: scoreColor(pct), color: scoreColor(pct) }} /></div>
   );
 }
 
@@ -46,6 +117,12 @@ export default function ResumeAnalyzer() {
   const [extracting, setExtracting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState(null);
+  const resultsRef = useRef(null);
+
+  // Bring fresh results into view once an analysis finishes.
+  useEffect(() => {
+    if (result) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [result]);
 
   // Coming from an application: prefill the job description from its role and notes.
   useEffect(() => {
@@ -120,16 +197,14 @@ export default function ResumeAnalyzer() {
 
   return (
     <div className="page">
-      <Link to={appId ? `/applications/${appId}` : '/'} className="back">
-        ← {appId ? 'Back to application' : 'All applications'}
-      </Link>
+      {appId && <Link to={`/applications/${appId}`} className="back">← Back to application</Link>}
 
-      <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Resume analyzer</h1>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 26px' }}>
-        Check how your resume reads to applicant tracking systems, and get AI feedback tailored to the job.
-      </p>
+      <div className="page-head">
+        <h1>Resume <span className="gradient-text">analyzer</span></h1>
+        <p>See how your resume reads to applicant tracking systems, and get AI feedback tailored to the job.</p>
+      </div>
 
-      <form onSubmit={analyze} className="card">
+      <form onSubmit={analyze} className="card card-glow">
         <div className="resume-inputs">
           <div className="field" style={{ marginBottom: 0 }}>
             <label className="field-label">Resume *</label>
@@ -142,7 +217,8 @@ export default function ResumeAnalyzer() {
               <input type="file" accept=".pdf,application/pdf,.txt,.md,text/plain"
                      onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ''; }}
                      style={{ display: 'none' }} />
-              <strong>{extracting ? 'Reading PDF…' : fileName ? `✓ ${fileName}` : 'Upload resume PDF'}</strong>
+              <span className="dropzone-icon" aria-hidden="true">{extracting ? '⏳' : fileName ? '✅' : '📄'}</span>
+              <strong>{extracting ? 'Reading PDF…' : fileName ?? 'Upload resume PDF'}</strong>
               <span>{fileName ? 'Click to upload a different file' : 'Click or drag & drop · max 5 MB'}</span>
             </label>
             <textarea value={resume} onChange={(e) => setResume(e.target.value)} required rows={11}
@@ -162,28 +238,35 @@ export default function ResumeAnalyzer() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'var(--text-muted)' }}>
-            <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} style={{ width: 'auto' }} />
-            Include AI review (takes ~30s)
+            <input type="checkbox" checked={includeAi} onChange={(e) => setIncludeAi(e.target.checked)} />
+            ✨ Include AI review <span style={{ opacity: 0.7 }}>(~30s)</span>
           </label>
           <button type="submit" className="btn-primary" disabled={busy || extracting || !resume.trim()}>
-            {busy ? 'Analyzing…' : 'Analyze resume'}
+            {busy ? 'Analyzing…' : 'Analyze resume →'}
           </button>
         </div>
       </form>
 
       {error && <p className="error" style={{ marginTop: 16 }}>{error}</p>}
 
-      {ats && (
-        <>
+      {busy && <Analyzing withAi={includeAi} />}
+
+      {ats && !busy && (
+        <div ref={resultsRef} className="fade-in" style={{ scrollMarginTop: 80 }}>
           <div className="section-title">Results</div>
-          <div className="card" style={{ display: 'flex', gap: 40, flexWrap: 'wrap', alignItems: 'center' }}>
-            <ScoreRing score={ats.score} label="ATS score" />
-            {ai && <ScoreRing score={ai.overallScore} label="AI score" />}
-            {ats.keywords && <ScoreRing score={ats.keywords.matchPercent} label="Keyword match" />}
-            <div style={{ flex: 1, minWidth: 200, fontSize: 14, color: 'var(--text-muted)' }}>
-              <div>{ats.wordCount} words</div>
-              <div>Sections: {ats.sectionsFound.length ? ats.sectionsFound.join(', ') : 'none detected'}</div>
-              {ai && <p style={{ color: 'var(--text)', marginBottom: 0 }}>{ai.summary}</p>}
+          <div className="card card-glow results-hero">
+            <div className="score-rings">
+              <ScoreRing score={ats.score} label="ATS score" />
+              {ai && <ScoreRing score={ai.overallScore} label="AI score" />}
+              {ats.keywords && <ScoreRing score={ats.keywords.matchPercent} label="Keyword match" />}
+            </div>
+            <div style={{ flex: 1, minWidth: 220, fontSize: 14, color: 'var(--text-muted)' }}>
+              <div className="chips" style={{ marginTop: 0 }}>
+                <span className="chip">📝 {ats.wordCount} words</span>
+                {ats.sectionsFound.map((sec) => <span key={sec} className="chip">✓ {sec}</span>)}
+                {!ats.sectionsFound.length && <span className="chip chip-missing">No sections detected</span>}
+              </div>
+              {ai && <p style={{ color: 'var(--text)', marginBottom: 0, lineHeight: 1.6 }}>{ai.summary}</p>}
             </div>
           </div>
 
@@ -225,26 +308,26 @@ export default function ResumeAnalyzer() {
               <div className="section-title">AI review</div>
               <div className="check-grid">
                 <div className="card" style={{ padding: 20 }}>
-                  <strong style={{ fontSize: 14 }}>Strengths</strong>
+                  <strong style={{ fontSize: 14 }}>💪 Strengths</strong>
                   <List items={ai.strengths} />
                 </div>
                 <div className="card" style={{ padding: 20 }}>
-                  <strong style={{ fontSize: 14 }}>Improvements</strong>
+                  <strong style={{ fontSize: 14 }}>🛠️ Improvements</strong>
                   <List items={ai.improvements} />
                 </div>
                 <div className="card" style={{ padding: 20 }}>
-                  <strong style={{ fontSize: 14 }}>Missing skills</strong>
+                  <strong style={{ fontSize: 14 }}>🧩 Missing skills</strong>
                   <List items={ai.missingSkills} />
                 </div>
                 <div className="card" style={{ padding: 20 }}>
-                  <strong style={{ fontSize: 14 }}>ATS warnings</strong>
+                  <strong style={{ fontSize: 14 }}>⚠️ ATS warnings</strong>
                   <List items={ai.atsWarnings} />
                 </div>
               </div>
 
               {ai.bulletRewrites?.length > 0 && (
                 <>
-                  <div className="section-title">Suggested bullet rewrites</div>
+                  <div className="section-title">✨ Suggested bullet rewrites</div>
                   <div className="card" style={{ padding: 0 }}>
                     {ai.bulletRewrites.map((b, i) => (
                       <div key={i} className="rewrite">
@@ -257,7 +340,7 @@ export default function ResumeAnalyzer() {
               )}
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   );
