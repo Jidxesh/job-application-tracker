@@ -82,7 +82,10 @@ public class ApplicationService {
     public Map<Status, Long> summary(UUID userId) {
         Map<Status, Long> counts = new EnumMap<>(Status.class);
         for (Status s : Status.values()) {
-            counts.put(s, applications.countByUserIdAndCurrentStatus(userId, s));
+            counts.put(s, 0L);
+        }
+        for (Object[] row : applications.countByStatus(userId)) {
+            counts.put((Status) row[0], (Long) row[1]);
         }
         return counts;
     }

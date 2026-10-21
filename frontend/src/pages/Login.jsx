@@ -11,17 +11,21 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [slow, setSlow] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
+    const slowTimer = setTimeout(() => setSlow(true), 4000);
     try {
       await (isRegister ? register(email, password) : login(email, password));
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error ?? 'Something went wrong');
     } finally {
+      clearTimeout(slowTimer);
+      setSlow(false);
       setBusy(false);
     }
   };
@@ -53,6 +57,11 @@ export default function Login() {
           </button>
         </form>
 
+        {slow && (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 16, marginBottom: 0 }}>
+            Waking up the server — this can take up to a minute after it's been idle.
+          </p>
+        )}
         {error && <p className="error" style={{ marginTop: 16, marginBottom: 0 }}>{error}</p>}
       </div>
 

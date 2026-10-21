@@ -8,4 +8,5 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+# Tuned for a small free-tier container: faster startup, lower memory.
+ENTRYPOINT ["java","-XX:TieredStopAtLevel=1","-XX:+UseSerialGC","-XX:MaxRAMPercentage=75","-Xss512k","-jar","/app/app.jar"]
